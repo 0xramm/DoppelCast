@@ -1,0 +1,589 @@
+/* ---------- Shell ---------- */
+.shell {
+  display: grid;
+  grid-template-rows: 44px 1fr 22px;
+  height: 100vh;
+  width: 100vw;
+}
+
+/* ---------- Title bar ---------- */
+.titlebar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background: var(--bg-alt);
+  -webkit-app-region: drag;
+}
+
+.titlebar-brand {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding-left: 10px;
+}
+
+.logo-mark {
+  height: 28px;
+  width: auto;
+  object-fit: contain;
+  flex-shrink: 0;
+}
+
+.titlebar-text .title {
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--text-primary);
+  line-height: 1.2;
+}
+
+.titlebar-text .subtitle {
+  font-size: 8px;
+  color: var(--text-muted);
+  line-height: 1.2;
+}
+
+.titlebar-controls {
+  display: flex;
+  -webkit-app-region: no-drag;
+}
+
+.titlebar-btn {
+  width: 36px;
+  height: 26px;
+  background: transparent;
+  border: none;
+  color: var(--text-secondary);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.titlebar-btn:hover {
+  background: var(--bg-secondary);
+  color: var(--text-primary);
+}
+
+.titlebar-btn.close:hover {
+  background: var(--record-active);
+  color: white;
+}
+
+/* ---------- Body ---------- */
+.body {
+  display: grid;
+  grid-template-columns: 150px 1fr;
+  min-height: 0;
+}
+
+/* ---------- Sidebar ---------- */
+.sidebar {
+  display: flex;
+  flex-direction: column;
+  background: var(--bg-alt);
+  padding-top: 8px;
+  overflow-y: auto;
+}
+
+.nav-section-header {
+  font-size: 9px;
+  font-weight: 600;
+  color: var(--text-muted);
+  padding: 8px 12px 4px;
+  letter-spacing: 0.03em;
+}
+
+.nav-button {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  height: 32px;
+  margin: 1px 6px;
+  padding: 0 10px;
+  border-radius: var(--radius-button);
+  border: none;
+  background: transparent;
+  color: var(--text-secondary);
+  font-size: 10px;
+  text-align: left;
+}
+
+.nav-button:hover {
+  background: var(--bg-secondary);
+}
+
+.nav-button.active {
+  background: var(--bg-secondary);
+  color: var(--text-primary);
+  font-weight: 600;
+}
+
+.nav-button svg {
+  color: var(--text-muted);
+  flex-shrink: 0;
+}
+
+.nav-button.active svg {
+  color: var(--accent);
+}
+
+.sidebar-spacer {
+  flex: 1;
+}
+
+.device-status-card {
+  margin: 10px;
+  padding: 8px;
+  background: var(--bg-card);
+  border: 1px solid var(--card-border);
+  border-radius: var(--radius-card);
+}
+
+.device-status-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.status-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--text-muted);
+  flex-shrink: 0;
+}
+
+.status-dot.connected {
+  background: var(--accent);
+}
+
+.device-status-name {
+  font-weight: 600;
+  color: var(--text-primary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 10px;
+}
+
+.device-status-meta {
+  display: flex;
+  gap: 10px;
+  margin-top: 6px;
+  font-size: 9px;
+}
+
+.device-status-meta span {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--text-muted);
+}
+
+/* ---------- Content ---------- */
+.content {
+  padding: var(--spacing);
+  overflow: auto;
+  min-height: 0;
+}
+
+/* ---------- Status bar ---------- */
+.statusbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 10px;
+  background: var(--bg-alt);
+  color: var(--text-muted);
+  font-size: 9px;
+}
+
+.statusbar-left,
+.statusbar-right {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.statusbar button {
+  background: none;
+  border: none;
+  color: var(--text-muted);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.statusbar button:hover {
+  color: var(--text-primary);
+}
+
+/* ---------- Cards ---------- */
+.card {
+  background: var(--bg-card);
+  border: 1px solid var(--card-border);
+  border-radius: var(--radius-card);
+  padding: 12px;
+  margin-bottom: var(--spacing);
+}
+
+.card:last-child {
+  margin-bottom: 0;
+}
+
+.card-header {
+  font-size: 10px;
+  font-weight: 600;
+  color: var(--accent);
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  margin-bottom: 8px;
+}
+
+/* ---------- Home page ---------- */
+.home-page {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing);
+}
+
+.home-top-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--spacing);
+  align-items: stretch;
+}
+
+/* Record card */
+.record-card-body {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.record-left {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+}
+
+.record-buttons {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.record-timer {
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+.record-status-text {
+  color: var(--accent);
+  font-weight: 600;
+  font-size: 10px;
+}
+
+.btn-rec {
+  width: 60px;
+  height: 60px;
+  border-radius: 50%;
+  border: none;
+  background: var(--accent);
+  color: white;
+  font-size: 10px;
+  font-weight: 700;
+}
+
+.btn-rec:hover:not(:disabled) {
+  background: var(--accent-hover);
+}
+
+.btn-rec.recording {
+  background: var(--record-active);
+}
+
+.btn-rec.recording:hover:not(:disabled) {
+  background: var(--record-active-hover);
+}
+
+.btn-rec:disabled {
+  opacity: 0.5;
+}
+
+.btn-icon-square {
+  height: 32px;
+  width: 32px;
+  border-radius: var(--radius-button);
+  border: 1px solid var(--border-color);
+  background: var(--bg-secondary);
+  color: var(--text-primary);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.btn-icon-square:hover:not(:disabled) {
+  filter: brightness(1.15);
+}
+
+.btn-icon-square:disabled {
+  opacity: 0.4;
+}
+
+/* Quick Actions card */
+.quick-actions-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 12px;
+}
+
+.quick-action-btn {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 5px;
+  padding: 8px 6px;
+  border-radius: var(--radius-card);
+  border: 1px solid var(--border-color);
+  background: var(--bg-secondary);
+  color: var(--text-primary);
+}
+
+.quick-action-btn:hover:not(:disabled) {
+  filter: brightness(1.15);
+}
+
+.quick-action-btn:disabled {
+  opacity: 0.4;
+}
+
+.quick-action-btn .icon-circle {
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  background: var(--bg-card);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--accent);
+}
+
+.quick-action-btn .label {
+  font-weight: 600;
+  font-size: 9px;
+}
+
+.quick-action-btn .hint {
+  color: var(--text-muted);
+  font-size: 8px;
+}
+
+/* Settings bar (Home page quick settings row) */
+.settings-bar-row {
+  display: flex;
+  gap: 14px;
+  flex-wrap: wrap;
+}
+
+.settings-bar-item {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.settings-bar-item .settings-bar-label {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--text-secondary);
+  font-weight: 600;
+}
+
+.settings-bar-item select,
+.settings-bar-item input[type="text"] {
+  width: 120px;
+}
+
+.settings-bar-item .save-location-row {
+  display: flex;
+  gap: 6px;
+}
+
+/* Fields (Video/Audio/Capture settings pages) */
+.field-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+.field-row:last-child {
+  margin-bottom: 0;
+}
+
+.field-label {
+  color: var(--text-secondary);
+  white-space: nowrap;
+}
+
+.field-control {
+  display: flex;
+  gap: 8px;
+  flex: 1;
+  justify-content: flex-end;
+}
+
+select,
+input[type="text"] {
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-color);
+  color: var(--text-primary);
+  border-radius: var(--radius-input);
+  height: 28px;
+  padding: 0 8px;
+  font-family: var(--font);
+  font-size: 9px;
+}
+
+select:focus,
+input[type="text"]:focus {
+  outline: none;
+  border-color: var(--accent);
+}
+
+.field-control select {
+  width: 160px;
+}
+
+.field-control input[type="text"] {
+  flex: 1;
+  min-width: 0;
+}
+
+.btn-browse {
+  width: 30px;
+  height: 28px;
+  border-radius: var(--radius-input);
+  border: 1px solid var(--border-color);
+  background: var(--bg-secondary);
+  color: var(--text-primary);
+}
+
+/* Toggle switch */
+.toggle {
+  position: relative;
+  width: 30px;
+  height: 16px;
+  border-radius: 8px;
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-color);
+  flex-shrink: 0;
+}
+
+.toggle input {
+  opacity: 0;
+  width: 0;
+  height: 0;
+}
+
+.toggle .knob {
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: var(--text-secondary);
+  transition: transform 0.15s ease, background 0.15s ease;
+}
+
+.toggle input:checked + .knob {
+  transform: translateX(14px);
+  background: white;
+}
+
+.toggle:has(input:checked) {
+  background: var(--accent);
+  border-color: var(--accent);
+}
+
+/* Device info rows */
+.info-row {
+  display: flex;
+  justify-content: space-between;
+  padding: 6px 0;
+  border-bottom: 1px solid var(--border-color);
+}
+
+.info-row:last-child {
+  border-bottom: none;
+}
+
+.info-label {
+  color: var(--text-secondary);
+}
+
+.info-value {
+  color: var(--text-primary);
+  font-weight: 600;
+}
+
+/* Settings / Hotkeys / About pages */
+.settings-page,
+.about-page {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+}
+
+.page-title {
+  font-size: 13px;
+  font-weight: 700;
+  margin-bottom: 8px;
+}
+
+.hotkey-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 10px 0;
+  border-bottom: 1px solid var(--border-color);
+}
+
+.hotkey-row:last-child {
+  border-bottom: none;
+}
+
+.hotkey-combo {
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-input);
+  padding: 4px 10px;
+  color: var(--accent);
+  font-weight: 600;
+}
+
+.btn {
+  height: 28px;
+  padding: 0 12px;
+  border-radius: var(--radius-button);
+  border: 1px solid var(--border-color);
+  background: var(--bg-secondary);
+  color: var(--text-primary);
+  font-size: 10px;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.btn:hover {
+  filter: brightness(1.15);
+}
+
+.about-page a {
+  color: var(--accent);
+}

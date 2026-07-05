@@ -1,0 +1,64 @@
+:root {
+  --bg-window: #0a0c10;
+  --bg-alt: #0d1016;
+  --bg-card: #12151c;
+  --bg-secondary: #171b23;
+
+  --border-color: #242a35;
+  --card-border: #2b3440;
+
+  --accent: #a855f7;
+  --accent-hover: #c084fc;
+  --accent-pressed: #4c2a73;
+  --signal-accent: #7b61ff;
+
+  --record-active: #ff4757;
+  --record-active-hover: #ff6b78;
+
+  --text-primary: #e9edf1;
+  --text-secondary: #94a3b8;
+  --text-muted: #565f6c;
+
+  --spacing: 12px;
+  --radius-card: 10px;
+  --radius-button: 8px;
+  --radius-input: 7px;
+
+  --font: "Segoe UI", system-ui, sans-serif;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+  margin: 0;
+}
+
+body {
+  background: var(--bg-window);
+  color: var(--text-primary);
+  font-family: var(--font);
+  font-size: 10px;
+  overflow: hidden;
+  user-select: none;
+}
+
+button {
+  font-family: var(--font);
+  cursor: pointer;
+}
+
+::-webkit-scrollbar {
+  width: 8px;
+}
+::-webkit-scrollbar-thumb {
+  background: var(--card-border);
+  border-radius: 4px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
