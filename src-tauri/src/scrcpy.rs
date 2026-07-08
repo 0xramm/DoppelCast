@@ -49,6 +49,20 @@ fn run_hidden(cmd: &mut Command) -> std::io::Result<std::process::Output> {
     cmd.output()
 }
 
+// Run once at app startup, before anything calls `adb devices`. A stray
+// adb server from another install (Android Studio's platform-tools, a
+// different scrcpy copy, etc.) can already be sitting on port 5037 with a
+// mismatched version -- our hidden/no-window client can silently fail to
+// take it over the way a manually-launched, visible scrcpy.exe does.
+// Killing it here forces the very first real query to spawn a server
+// owned by our own bundled adb.exe.
+pub fn kill_adb_server() {
+    let adb = adb_path();
+    if adb.exists() {
+        let _ = run_hidden(Command::new(&adb).arg("kill-server"));
+    }
+}
+
 #[tauri::command]
 pub fn list_devices() -> Result<Vec<DeviceInfo>, String> {
     let adb = adb_path();

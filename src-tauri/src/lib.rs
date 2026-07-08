@@ -68,6 +68,8 @@ pub fn run() {
                 .build(),
         )
         .setup(move |app| {
+            scrcpy::kill_adb_server();
+
             let shortcuts_api = app.global_shortcut();
 
             let record = register_first_available(&shortcuts_api, &record_candidates);
