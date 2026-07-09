@@ -11,7 +11,7 @@ export default function TitleBar({ onOpenSettings }: { onOpenSettings: () => voi
         <img src={logoIcon} alt="" className="logo-mark" />
         <div className="titlebar-text">
           <div className="title">DoppelCast</div>
-          <div className="subtitle">Android Screen Recorder</div>
+          <div className="subtitle">Android Gameplay Recorder</div>
         </div>
       </div>
       <div className="titlebar-controls">

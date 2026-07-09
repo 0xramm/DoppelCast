@@ -1,6 +1,6 @@
 [package]
 name = "doppelcast-tauri"
-version = "1.0.1"
+version = "1.0.3"
 description = "Android screen recorder frontend for scrcpy"
 authors = ["0xramm"]
 edition = "2021"

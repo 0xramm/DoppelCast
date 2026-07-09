@@ -1,6 +1,8 @@
 import { useEffect, useRef, useState } from "react";
 import { open } from "@tauri-apps/plugin-dialog";
 import { listen } from "@tauri-apps/api/event";
+import { getVersion } from "@tauri-apps/api/app";
+import { Loader2 } from "lucide-react";
 import "./theme.css";
 import "./App.css";
 import TitleBar from "./components/TitleBar";
@@ -27,6 +29,7 @@ import {
   isScrcpyRunning,
   getHotkeys,
   type BoundHotkeys,
+  type ScrcpySetupResult,
 } from "./api";
 import { buildScrcpyArgs, generateFilename } from "./scrcpyArgs";
 
@@ -45,6 +48,16 @@ export default function App() {
   const [sessionState, setSessionState] = useState<SessionState>("idle");
   const [elapsedMs, setElapsedMs] = useState(0);
   const [hotkeys, setHotkeys] = useState<BoundHotkeys>({ record: null, screenshot: null });
+  const [version, setVersion] = useState("");
+  // hasScanned distinguishes "haven't checked yet" (Searching...) from
+  // "checked and found nothing" (0 devices found) in the footer.
+  const [hasScanned, setHasScanned] = useState(false);
+  const [deviceCount, setDeviceCount] = useState(0);
+  // Rust fetches scrcpy/adb in the background on first run -- stay on a
+  // loading screen until it reports done, instead of showing the normal
+  // (misleadingly idle-looking) UI while a multi-second download is in
+  // flight behind the scenes.
+  const [ready, setReady] = useState(false);
 
   // Latest values for use inside the polling interval / hotkey listener
   // closures, which are only set up once (see the [] dependency arrays).
@@ -105,10 +118,26 @@ export default function App() {
     openFolder(stateRef.current.settings.outputFolder).catch((err) => console.error("Could not open folder:", err));
   };
 
+  // Waits for the Rust side's background scrcpy/adb install check -- fires
+  // near-instantly on every run after the first, since it's just two
+  // fs::exists() checks once the binaries are already there.
+  useEffect(() => {
+    const unlisten = listen<ScrcpySetupResult>("scrcpy-setup-done", (e) => {
+      setReady(true);
+      if (!e.payload.ok && e.payload.error) console.error("scrcpy setup:", e.payload.error);
+    });
+    return () => {
+      unlisten.then((f) => f());
+    };
+  }, []);
+
   // Device polling: no more auto-preview/auto-anything -- just keeps the
   // sidebar/Home page's connection status current, and resyncs session
   // state if scrcpy exits unexpectedly (crash, device unplugged mid-record).
+  // Gated on `ready` so it doesn't start hitting adb before the background
+  // install check above has had a chance to fetch it.
   useEffect(() => {
+    if (!ready) return;
     const poll = async () => {
       const { device: currentDevice, sessionState: currentState } = stateRef.current;
 
@@ -119,6 +148,8 @@ export default function App() {
       }
 
       const raw = await listDevices().catch(() => []);
+      setDeviceCount(raw.length);
+      setHasScanned(true);
       const found = raw.find((d) => d.state === "device");
 
       if (!found) {
@@ -142,7 +173,7 @@ export default function App() {
     const id = setInterval(poll, 2000);
     poll();
     return () => clearInterval(id);
-  }, []);
+  }, [ready]);
 
   // Global hotkeys (registered on the Rust side, with fallback key combos
   // if the preferred one is already claimed by other software) fire even
@@ -164,6 +195,27 @@ export default function App() {
       .then(setHotkeys)
       .catch(() => {});
   }, []);
+
+  // Reads the version straight from tauri.conf.json (via Tauri's app API)
+  // instead of a hardcoded string, so it can't drift from the real build
+  // version again on the next release.
+  useEffect(() => {
+    getVersion()
+      .then(setVersion)
+      .catch(() => {});
+  }, []);
+
+  if (!ready) {
+    return (
+      <div className="shell">
+        <TitleBar onOpenSettings={() => {}} />
+        <div className="loading-screen">
+          <Loader2 className="spin-icon" size={26} />
+          <span>Preparing DoppelCast…</span>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="shell">
@@ -191,10 +243,17 @@ export default function App() {
           {page === "capture" && <CaptureSettingsPage settings={settings} onChange={patchSettings} />}
           {page === "settings" && <GeneralSettingsPage />}
           {page === "hotkeys" && <HotkeysSettingsPage hotkeys={hotkeys} />}
-          {page === "about" && <AboutPage />}
+          {page === "about" && <AboutPage version={version} />}
         </div>
       </div>
-      <StatusBar device={device} hotkeys={hotkeys} onOpenFolder={handleOpenFolder} />
+      <StatusBar
+        device={device}
+        hotkeys={hotkeys}
+        onOpenFolder={handleOpenFolder}
+        version={version}
+        hasScanned={hasScanned}
+        deviceCount={deviceCount}
+      />
     </div>
   );
 }

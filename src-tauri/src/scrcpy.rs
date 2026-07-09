@@ -40,21 +40,17 @@ pub fn scrcpy_path() -> PathBuf {
 // Windows box this app targets. Runs once per missing-install, not on every
 // launch, and is best-effort: a failed/offline download just leaves the
 // existing "scrcpy.exe not found" error path in place, no crash.
-pub fn ensure_scrcpy_installed() {
+pub fn ensure_scrcpy_installed() -> Result<(), String> {
     if scrcpy_path().exists() && adb_path().exists() {
-        return;
+        return Ok(());
     }
 
     let dest = install_dir();
-    if std::fs::create_dir_all(&dest).is_err() {
-        return;
-    }
+    std::fs::create_dir_all(&dest).map_err(|e| format!("failed to create install directory: {e}"))?;
 
     let tmp = std::env::temp_dir().join("doppelcast-scrcpy-setup");
     let _ = std::fs::remove_dir_all(&tmp);
-    if std::fs::create_dir_all(&tmp).is_err() {
-        return;
-    }
+    std::fs::create_dir_all(&tmp).map_err(|e| format!("failed to create temp directory: {e}"))?;
     let zip_path = tmp.join("scrcpy.zip");
     let extract_path = tmp.join("extracted");
 
@@ -69,20 +65,16 @@ pub fn ensure_scrcpy_installed() {
         extract = extract_path.display(),
     );
 
-    let ran = Command::new("powershell")
+    let output = Command::new("powershell")
         .args(["-NoProfile", "-NonInteractive", "-Command", &script])
         .creation_flags(CREATE_NO_WINDOW)
-        .output();
-    let Ok(output) = ran else { return };
+        .output()
+        .map_err(|e| format!("failed to launch powershell: {e}"))?;
     if !output.status.success() {
-        eprintln!("scrcpy download failed: {}", String::from_utf8_lossy(&output.stderr));
-        return;
+        return Err(format!("scrcpy download failed: {}", String::from_utf8_lossy(&output.stderr)));
     }
 
-    let Some(src_dir) = find_scrcpy_dir(&extract_path) else {
-        eprintln!("scrcpy download: scrcpy.exe not found in downloaded archive");
-        return;
-    };
+    let src_dir = find_scrcpy_dir(&extract_path).ok_or("scrcpy.exe not found in downloaded archive")?;
     if let Ok(entries) = std::fs::read_dir(&src_dir) {
         for entry in entries.flatten() {
             if entry.path().is_file() {
@@ -92,6 +84,7 @@ pub fn ensure_scrcpy_installed() {
     }
 
     let _ = std::fs::remove_dir_all(&tmp);
+    Ok(())
 }
 
 fn find_scrcpy_dir(root: &Path) -> Option<PathBuf> {
@@ -418,7 +411,7 @@ mod tests {
     #[ignore]
     fn ensure_scrcpy_installed_fetches_binaries() {
         let _ = std::fs::remove_dir_all(install_dir());
-        ensure_scrcpy_installed();
+        assert!(ensure_scrcpy_installed().is_ok());
         assert!(scrcpy_path().exists(), "scrcpy.exe missing after install");
         assert!(adb_path().exists(), "adb.exe missing after install");
     }

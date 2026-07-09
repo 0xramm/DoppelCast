@@ -18,6 +18,11 @@ export interface BoundHotkeys {
   screenshot: string | null;
 }
 
+export interface ScrcpySetupResult {
+  ok: boolean;
+  error: string | null;
+}
+
 export const listDevices = () => invoke<RawDevice[]>("list_devices");
 export const getHotkeys = () => invoke<BoundHotkeys>("get_hotkeys");
 export const getDeviceDetails = (serial: string) => invoke<DeviceDetails>("get_device_details", { serial });

@@ -1,9 +1,9 @@
-export default function AboutPage() {
+export default function AboutPage({ version }: { version: string }) {
   return (
     <div className="about-page">
       <div className="page-title">DoppelCast</div>
-      <p style={{ color: "var(--text-secondary)" }}>App version 1.0.0</p>
-      <p style={{ color: "var(--text-secondary)" }}>Android screen recorder.</p>
+      <p style={{ color: "var(--text-secondary)" }}>App version {version}</p>
+      <p style={{ color: "var(--text-secondary)" }}>Android gameplay recorder.</p>
       <p style={{ color: "var(--text-secondary)" }}>
         Developed by <span style={{ color: "var(--text-primary)", fontWeight: 600 }}>0xramm</span>
       </p>

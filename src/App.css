@@ -68,6 +68,28 @@
   color: white;
 }
 
+/* ---------- Loading screen (first-run scrcpy setup) ---------- */
+.loading-screen {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  color: var(--text-secondary);
+  font-size: 11px;
+}
+
+.spin-icon {
+  color: var(--accent);
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
 /* ---------- Body ---------- */
 .body {
   display: grid;

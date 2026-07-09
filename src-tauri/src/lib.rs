@@ -10,6 +10,12 @@ pub struct BoundHotkeys {
     pub screenshot: Option<String>,
 }
 
+#[derive(Clone, Serialize)]
+struct ScrcpySetupResult {
+    ok: bool,
+    error: Option<String>,
+}
+
 #[tauri::command]
 fn get_hotkeys(state: tauri::State<'_, BoundHotkeys>) -> BoundHotkeys {
     state.inner().clone()
@@ -68,8 +74,22 @@ pub fn run() {
                 .build(),
         )
         .setup(move |app| {
-            scrcpy::ensure_scrcpy_installed();
-            scrcpy::kill_adb_server();
+            // Downloading scrcpy (first run only) can take several seconds --
+            // running it here on the setup thread would block the window's
+            // message pump before the event loop even starts, so Windows
+            // shows "(Not Responding)" right as a first-time user opens the
+            // app. Do it on a background thread instead and let the frontend
+            // show its own "preparing" state until this event fires.
+            let handle = app.handle().clone();
+            std::thread::spawn(move || {
+                let result = scrcpy::ensure_scrcpy_installed();
+                scrcpy::kill_adb_server();
+                let (ok, error) = match result {
+                    Ok(()) => (true, None),
+                    Err(e) => (false, Some(e)),
+                };
+                let _ = handle.emit("scrcpy-setup-done", ScrcpySetupResult { ok, error });
+            });
 
             let shortcuts_api = app.global_shortcut();
 
