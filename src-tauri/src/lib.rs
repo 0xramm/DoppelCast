@@ -68,6 +68,7 @@ pub fn run() {
                 .build(),
         )
         .setup(move |app| {
+            scrcpy::ensure_scrcpy_installed();
             scrcpy::kill_adb_server();
 
             let shortcuts_api = app.global_shortcut();

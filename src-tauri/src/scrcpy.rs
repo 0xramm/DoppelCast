@@ -29,6 +29,86 @@ pub fn scrcpy_path() -> PathBuf {
     install_dir().join("scrcpy.exe")
 }
 
+// The WinForms build's installer used to be the thing that fetched
+// scrcpy/adb; this Tauri build has no installer step, so nothing ever
+// populated install_dir() and every scrcpy call silently no-op'd. Fetch the
+// latest official win64 release the same way that installer did, straight
+// into the same folder, the first time either exe is missing.
+//
+// ponytail: shells out to PowerShell's Invoke-WebRequest/Expand-Archive
+// instead of adding a http+zip crate pair -- both are already on every
+// Windows box this app targets. Runs once per missing-install, not on every
+// launch, and is best-effort: a failed/offline download just leaves the
+// existing "scrcpy.exe not found" error path in place, no crash.
+pub fn ensure_scrcpy_installed() {
+    if scrcpy_path().exists() && adb_path().exists() {
+        return;
+    }
+
+    let dest = install_dir();
+    if std::fs::create_dir_all(&dest).is_err() {
+        return;
+    }
+
+    let tmp = std::env::temp_dir().join("doppelcast-scrcpy-setup");
+    let _ = std::fs::remove_dir_all(&tmp);
+    if std::fs::create_dir_all(&tmp).is_err() {
+        return;
+    }
+    let zip_path = tmp.join("scrcpy.zip");
+    let extract_path = tmp.join("extracted");
+
+    let script = format!(
+        "$ErrorActionPreference = 'Stop'; \
+         $release = Invoke-RestMethod -Uri 'https://api.github.com/repos/Genymobile/scrcpy/releases/latest' -Headers @{{ 'User-Agent' = 'DoppelCast' }}; \
+         $asset = $release.assets | Where-Object {{ $_.name -like '*win64*.zip' }} | Select-Object -First 1; \
+         if (-not $asset) {{ throw 'no win64 asset found' }}; \
+         Invoke-WebRequest -Uri $asset.browser_download_url -OutFile '{zip}' -UseBasicParsing; \
+         Expand-Archive -Path '{zip}' -DestinationPath '{extract}' -Force",
+        zip = zip_path.display(),
+        extract = extract_path.display(),
+    );
+
+    let ran = Command::new("powershell")
+        .args(["-NoProfile", "-NonInteractive", "-Command", &script])
+        .creation_flags(CREATE_NO_WINDOW)
+        .output();
+    let Ok(output) = ran else { return };
+    if !output.status.success() {
+        eprintln!("scrcpy download failed: {}", String::from_utf8_lossy(&output.stderr));
+        return;
+    }
+
+    let Some(src_dir) = find_scrcpy_dir(&extract_path) else {
+        eprintln!("scrcpy download: scrcpy.exe not found in downloaded archive");
+        return;
+    };
+    if let Ok(entries) = std::fs::read_dir(&src_dir) {
+        for entry in entries.flatten() {
+            if entry.path().is_file() {
+                let _ = std::fs::copy(entry.path(), dest.join(entry.file_name()));
+            }
+        }
+    }
+
+    let _ = std::fs::remove_dir_all(&tmp);
+}
+
+fn find_scrcpy_dir(root: &Path) -> Option<PathBuf> {
+    if root.join("scrcpy.exe").exists() {
+        return Some(root.to_path_buf());
+    }
+    for entry in std::fs::read_dir(root).ok()?.flatten() {
+        let path = entry.path();
+        if path.is_dir() {
+            if let Some(found) = find_scrcpy_dir(&path) {
+                return Some(found);
+            }
+        }
+    }
+    None
+}
+
 #[derive(Serialize, Clone, Debug)]
 pub struct DeviceInfo {
     pub serial: String,
@@ -325,5 +405,21 @@ fn send_ctrl_c(pid: u32) {
         GenerateConsoleCtrlEvent(CTRL_C_EVENT, 0);
         FreeConsole();
         SetConsoleCtrlHandler(None, 0);
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    // Hits the real GitHub API + downloads the real release zip -- `cargo
+    // test -- --ignored` only, not part of the default (offline) test run.
+    #[test]
+    #[ignore]
+    fn ensure_scrcpy_installed_fetches_binaries() {
+        let _ = std::fs::remove_dir_all(install_dir());
+        ensure_scrcpy_installed();
+        assert!(scrcpy_path().exists(), "scrcpy.exe missing after install");
+        assert!(adb_path().exists(), "adb.exe missing after install");
     }
 }
