@@ -13,11 +13,9 @@ import AboutPage from "./pages/AboutPage";
 import {
   VideoSettingsPage,
   AudioSettingsPage,
-  CaptureSettingsPage,
   GeneralSettingsPage,
-  HotkeysSettingsPage,
 } from "./pages/SettingsPages";
-import type { DeviceInfo, PageId, SessionState, UserSettings } from "./types";
+import type { ConnectionMode, DeviceInfo, PageId, SessionState, UserSettings } from "./types";
 import {
   listDevices,
   getDeviceDetails,
@@ -26,7 +24,10 @@ import {
   startScrcpy,
   stopScrcpy,
   isScrcpyRunning,
-  getHotkeys,
+  setHotkey,
+  getScrcpyStatus,
+  connectWifi,
+  listMdnsDevices,
   type BoundHotkeys,
   type ScrcpySetupResult,
 } from "./api";
@@ -76,6 +77,10 @@ export default function App() {
   }, [sessionState]);
 
   const patchSettings = (patch: Partial<UserSettings>) => setSettings((s) => ({ ...s, ...patch }));
+  // Persisted like any other setting -- the switch position and last
+  // wireless ip/port should all survive a restart together.
+  const connectionMode = settings.connectionMode;
+  const setConnectionMode = (m: ConnectionMode) => patchSettings({ connectionMode: m });
 
   useEffect(() => {
     saveSettings(settings);
@@ -86,6 +91,73 @@ export default function App() {
   useEffect(() => {
     if (!ready) return;
     checkForUpdate().then(setUpdate);
+  }, [ready]);
+
+  // A previously-connected Wi-Fi device doesn't survive the adb server
+  // restart below (kill_adb_server, on the Rust side) -- that's what
+  // actually held the wireless connection, not the phone's pairing/trust,
+  // which is permanent. So reconnect automatically once ready, instead of
+  // making the user hit Connect again every launch. Prefers a live mDNS
+  // discovery hit (the device's *current* address -- reliable even if it
+  // changed since last time) over the persisted last-used ip:port, giving
+  // mDNS a few retries since discovery takes a moment right after the adb
+  // server restarts. All of this is best-effort: silent failure just leaves
+  // the manual Connect button in the sidebar as the fallback.
+  useEffect(() => {
+    if (!ready) return;
+    const { connectionMode, wifiIp, wifiPort } = stateRef.current.settings;
+    if (connectionMode !== "wifi") return;
+
+    let cancelled = false;
+    let attempts = 0;
+    const tryReconnect = () => {
+      if (cancelled) return;
+      listMdnsDevices()
+        .then((devices) => {
+          const found = devices.find((d) => d.kind === "connect");
+          if (found) {
+            const [ip, port] = found.address.split(":");
+            connectWifi(ip, Number(port)).catch(() => {});
+          } else if (attempts < 3) {
+            attempts++;
+            setTimeout(tryReconnect, 1500);
+          } else if (wifiIp) {
+            connectWifi(wifiIp, wifiPort).catch(() => {});
+          }
+        })
+        .catch(() => {
+          if (wifiIp) connectWifi(wifiIp, wifiPort).catch(() => {});
+        });
+    };
+    tryReconnect();
+    return () => {
+      cancelled = true;
+    };
+  }, [ready]);
+
+  // Binds `combo` as the OS-level global shortcut for `action`, updates the
+  // displayed hotkeys on success, and persists it as the user's choice.
+  // Returns an error message on failure (combo invalid, or already taken)
+  // instead of throwing, so callers can just show it.
+  const bindHotkey = async (action: "record" | "screenshot", combo: string): Promise<string | null> => {
+    try {
+      await setHotkey(action, combo);
+      setHotkeys((h) => ({ ...h, [action]: combo }));
+      patchSettings(action === "record" ? { hotkeyRecord: combo } : { hotkeyScreenshot: combo });
+      return null;
+    } catch (err) {
+      return err instanceof Error ? err.message : String(err);
+    }
+  };
+
+  // Applies the user's saved hotkeys once Rust is ready to register them --
+  // there's no fixed default binding on the Rust side anymore, the frontend
+  // is the source of truth for which combo goes with which action.
+  useEffect(() => {
+    if (!ready) return;
+    const { hotkeyRecord, hotkeyScreenshot } = stateRef.current.settings;
+    bindHotkey("record", hotkeyRecord).then((err) => err && console.error("record hotkey:", err));
+    bindHotkey("screenshot", hotkeyScreenshot).then((err) => err && console.error("screenshot hotkey:", err));
   }, [ready]);
 
   const handleRecord = async () => {
@@ -134,13 +206,26 @@ export default function App() {
 
   // Waits for the Rust side's background scrcpy/adb install check -- fires
   // near-instantly on every run after the first, since it's just two
-  // fs::exists() checks once the binaries are already there.
+  // fs::exists() checks once the binaries are already there. That speed is
+  // exactly the problem: it can finish before the listener below has
+  // registered, and Tauri doesn't replay missed events -- so once
+  // registration resolves, also pull the cached result directly in case it
+  // already happened.
   useEffect(() => {
-    const unlisten = listen<ScrcpySetupResult>("scrcpy-setup-done", (e) => {
+    let cancelled = false;
+    const handleResult = (result: ScrcpySetupResult) => {
       setReady(true);
-      if (!e.payload.ok && e.payload.error) console.error("scrcpy setup:", e.payload.error);
+      if (!result.ok && result.error) console.error("scrcpy setup:", result.error);
+    };
+    const unlisten = listen<ScrcpySetupResult>("scrcpy-setup-done", (e) => handleResult(e.payload));
+    unlisten.then(() => {
+      if (cancelled) return;
+      getScrcpyStatus()
+        .then((status) => status && handleResult(status))
+        .catch(() => {});
     });
     return () => {
+      cancelled = true;
       unlisten.then((f) => f());
     };
   }, []);
@@ -153,7 +238,8 @@ export default function App() {
   useEffect(() => {
     if (!ready) return;
     const poll = async () => {
-      const { device: currentDevice, sessionState: currentState } = stateRef.current;
+      const { device: currentDevice, sessionState: currentState, settings: currentSettings } = stateRef.current;
+      const mode = currentSettings.connectionMode;
 
       const running = await isScrcpyRunning().catch(() => false);
       if (currentState === "recording" && !running) {
@@ -164,7 +250,11 @@ export default function App() {
       const raw = await listDevices().catch(() => []);
       setDeviceCount(raw.length);
       setHasScanned(true);
-      const found = raw.find((d) => d.state === "device");
+      // adb can see the same phone twice (once per transport) once it's been
+      // wireless-connected -- prefer whichever transport matches the
+      // selected mode, but fall back to whatever's there rather than
+      // showing "no device" if only the other transport is up.
+      const found = raw.find((d) => d.state === "device" && d.wireless === (mode === "wifi")) ?? raw.find((d) => d.state === "device");
 
       if (!found) {
         if (currentDevice) setDevice(null);
@@ -189,9 +279,8 @@ export default function App() {
     return () => clearInterval(id);
   }, [ready]);
 
-  // Global hotkeys (registered on the Rust side, with fallback key combos
-  // if the preferred one is already claimed by other software) fire even
-  // when the window isn't focused -- Rust just emits an event on press.
+  // Global hotkeys (bound above via bindHotkey once ready) fire even when
+  // the window isn't focused -- Rust just emits an event on press.
   useEffect(() => {
     const unlistenRecord = listen("hotkey-toggle-record", () => handleToggleRecord());
     const unlistenScreenshot = listen("hotkey-screenshot", () => void handleScreenshot());
@@ -199,15 +288,6 @@ export default function App() {
       unlistenRecord.then((f) => f());
       unlistenScreenshot.then((f) => f());
     };
-  }, []);
-
-  // Fetch which key combo Rust actually managed to bind -- the preferred
-  // one isn't guaranteed to be free, so the UI shows the real one instead
-  // of assuming.
-  useEffect(() => {
-    getHotkeys()
-      .then(setHotkeys)
-      .catch(() => {});
   }, []);
 
   // Reads the version straight from tauri.conf.json (via Tauri's app API)
@@ -222,7 +302,13 @@ export default function App() {
   if (!ready) {
     return (
       <div className="shell">
-        <TitleBar onOpenSettings={() => {}} onOpenAbout={() => {}} updateAvailable={false} />
+        <TitleBar
+          onOpenSettings={() => {}}
+          onOpenAbout={() => {}}
+          updateAvailable={false}
+          mode={connectionMode}
+          onModeChange={setConnectionMode}
+        />
         <div className="loading-screen">
           <Loader2 className="spin-icon" size={26} />
           <span>Preparing DoppelCast…</span>
@@ -233,41 +319,51 @@ export default function App() {
 
   return (
     <div className="shell">
-      <TitleBar onOpenSettings={() => setPage("settings")} onOpenAbout={() => setPage("about")} updateAvailable={!!update} />
+      <TitleBar
+        onOpenSettings={() => setPage("settings")}
+        onOpenAbout={() => setPage("about")}
+        updateAvailable={!!update}
+        mode={connectionMode}
+        onModeChange={setConnectionMode}
+      />
       <div className="body">
-        <Sidebar active={page} onNavigate={setPage} device={device} />
+        <Sidebar
+          active={page}
+          onNavigate={setPage}
+          device={device}
+          mode={connectionMode}
+          settings={settings}
+          onSettingsChange={patchSettings}
+        />
         <div className="content">
           {page === "home" && (
             <HomePage
               device={device}
-              settings={settings}
-              onSettingsChange={patchSettings}
+              outputFolder={settings.outputFolder}
               sessionState={sessionState}
               elapsed={formatElapsed(elapsedMs)}
               hotkeys={hotkeys}
               onRecordClick={handleRecord}
               onStopClick={handleStop}
               onScreenshotClick={handleScreenshot}
-              onBrowseClick={handleBrowse}
               onOpenFolderClick={handleOpenFolder}
             />
           )}
           {page === "video" && <VideoSettingsPage settings={settings} onChange={patchSettings} />}
           {page === "audio" && <AudioSettingsPage settings={settings} onChange={patchSettings} />}
-          {page === "capture" && <CaptureSettingsPage settings={settings} onChange={patchSettings} />}
-          {page === "settings" && <GeneralSettingsPage />}
-          {page === "hotkeys" && <HotkeysSettingsPage hotkeys={hotkeys} />}
+          {page === "settings" && (
+            <GeneralSettingsPage
+              settings={settings}
+              onChange={patchSettings}
+              onBrowseClick={handleBrowse}
+              hotkeys={hotkeys}
+              onRebindHotkey={bindHotkey}
+            />
+          )}
           {page === "about" && <AboutPage version={version} update={update} />}
         </div>
       </div>
-      <StatusBar
-        device={device}
-        hotkeys={hotkeys}
-        onOpenFolder={handleOpenFolder}
-        version={version}
-        hasScanned={hasScanned}
-        deviceCount={deviceCount}
-      />
+      <StatusBar device={device} hotkeys={hotkeys} version={version} hasScanned={hasScanned} deviceCount={deviceCount} />
     </div>
   );
 }

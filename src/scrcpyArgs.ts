@@ -9,7 +9,7 @@ export function buildScrcpyArgs(settings: UserSettings, outputPath: string, seri
   }
 
   args.push(`--video-codec=${settings.videoCodec}`);
-  args.push(`--video-bit-rate=${settings.bitrateMbps}M`);
+  args.push(`--video-bit-rate=${settings.bitrateKbps}K`);
   args.push(`--max-fps=${settings.fps}`);
 
   if (settings.resolution > 0) {
@@ -34,13 +34,14 @@ export function buildScrcpyArgs(settings: UserSettings, outputPath: string, seri
   // No embedding, no in-app preview -- headless by default so recording
   // doesn't depend on a window existing at all. Showing scrcpy's own
   // (separate, unembedded) window is opt-in for people who want to watch --
-  // custom-titled so nothing reveals what it actually is under the hood
-  // (kept decorated/non-borderless; borderless mode was interfering with
-  // the window actually rendering).
+  // custom-titled so nothing reveals what it actually is under the hood.
   if (settings.showMirrorWindow) {
     args.push("--window-title=DoppelCast");
     if (settings.renderDriver !== "auto") {
       args.push(`--render-driver=${settings.renderDriver}`);
+    }
+    if (settings.borderlessWindow) {
+      args.push("--window-borderless");
     }
   } else {
     args.push("--no-playback");

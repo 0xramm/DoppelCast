@@ -169,6 +169,98 @@ pub fn list_devices() -> Result<Vec<DeviceInfo>, String> {
     Ok(devices)
 }
 
+#[derive(Serialize)]
+pub struct MdnsDevice {
+    kind: String, // "connect" (already trusted, ready for adb connect) or "pair" (showing a pairing code, needs pair_wifi)
+    address: String, // "ip:port"
+}
+
+// adb's own mDNS auto-discovery (`adb mdns services`) -- lists every
+// Wireless-debugging device currently broadcasting on the network, split
+// into ones already trusted (ready to connect) and ones sitting on the
+// pairing-code screen (available to pair). No manual IP typing needed for
+// either, and no new dependency -- this bundled adb already has the mDNS
+// backend built in (confirmed via `adb mdns check`).
+#[tauri::command]
+pub fn list_mdns_devices() -> Result<Vec<MdnsDevice>, String> {
+    let adb = adb_path();
+    if !adb.exists() {
+        return Ok(vec![]);
+    }
+
+    let output = run_hidden(Command::new(&adb).args(["mdns", "services"])).map_err(|e| e.to_string())?;
+    let text = String::from_utf8_lossy(&output.stdout);
+
+    let mut devices = vec![];
+    for line in text.lines() {
+        let line = line.trim();
+        if line.is_empty() || line.starts_with("List of") {
+            continue;
+        }
+        let parts: Vec<&str> = line.split_whitespace().collect();
+        if parts.len() < 2 {
+            continue;
+        }
+        let kind = if parts[0].contains("pairing") {
+            "pair"
+        } else if parts[0].contains("connect") {
+            "connect"
+        } else {
+            continue;
+        };
+        devices.push(MdnsDevice { kind: kind.to_string(), address: parts[1].to_string() });
+    }
+    Ok(devices)
+}
+
+// One-time trust setup: Android 11+'s Wireless debugging pairing. Once
+// paired, this PC's adb key is permanently trusted by the device (same as
+// the USB debugging "always allow" prompt) -- this doesn't need repeating
+// on every connect, only the very first time (or after the device's trust
+// list is cleared).
+#[tauri::command]
+pub fn pair_wifi(address: String, code: String) -> Result<String, String> {
+    let adb = adb_path();
+    if !adb.exists() {
+        return Err("adb.exe not found".into());
+    }
+
+    let output = run_hidden(Command::new(&adb).args(["pair", &address, &code])).map_err(|e| e.to_string())?;
+    let text = String::from_utf8_lossy(&output.stdout).trim().to_string();
+    if text.to_lowercase().contains("successfully paired") {
+        Ok(text)
+    } else {
+        let err_text = String::from_utf8_lossy(&output.stderr).trim().to_string();
+        Err(if !text.is_empty() {
+            text
+        } else if !err_text.is_empty() {
+            err_text
+        } else {
+            "Pairing failed -- check the address and code are still current.".to_string()
+        })
+    }
+}
+
+// The frequent path: works directly once paired, no code needed. The
+// ip:port here is ephemeral (changes on network change, toggle, reboot) --
+// unlike pairing, this really is expected to need updating often.
+#[tauri::command]
+pub fn connect_wifi(ip: String, port: u16) -> Result<String, String> {
+    let adb = adb_path();
+    if !adb.exists() {
+        return Err("adb.exe not found".into());
+    }
+
+    let target = format!("{ip}:{port}");
+    let output = run_hidden(Command::new(&adb).args(["connect", &target])).map_err(|e| e.to_string())?;
+    let text = String::from_utf8_lossy(&output.stdout).trim().to_string();
+    if text.to_lowercase().contains("connected to") {
+        Ok(target)
+    } else {
+        Err(if text.is_empty() { "adb connect gave no response".to_string() } else { text })
+    }
+}
+
 #[tauri::command]
 pub fn get_device_details(serial: String) -> Result<DeviceDetails, String> {
     let adb = adb_path();

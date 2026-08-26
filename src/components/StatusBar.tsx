@@ -1,9 +1,10 @@
-import { FolderOpen } from "lucide-react";
+import { Wifi, Usb } from "lucide-react";
 import type { DeviceInfo } from "../types";
 import type { BoundHotkeys } from "../api";
+import { formatHotkey } from "../hotkeys";
 
 function deviceStatusText(device: DeviceInfo | null, hasScanned: boolean, deviceCount: number) {
-  if (device) return `● Connected: ${device.model}`;
+  if (device) return `● Connected via ${device.wireless ? "Wi-Fi" : "USB"}: ${device.model}`;
   if (!hasScanned) return "Searching for devices…";
   return deviceCount === 0 ? "○ 0 devices found" : `○ ${deviceCount} device${deviceCount === 1 ? "" : "s"} found`;
 }
@@ -11,14 +12,12 @@ function deviceStatusText(device: DeviceInfo | null, hasScanned: boolean, device
 export default function StatusBar({
   device,
   hotkeys,
-  onOpenFolder,
   version,
   hasScanned,
   deviceCount,
 }: {
   device: DeviceInfo | null;
   hotkeys: BoundHotkeys;
-  onOpenFolder: () => void;
   version: string;
   hasScanned: boolean;
   deviceCount: number;
@@ -27,14 +26,14 @@ export default function StatusBar({
     <div className="statusbar">
       <div className="statusbar-left">
         <span>DoppelCast{version ? ` v${version}` : ""}</span>
-        <span>{deviceStatusText(device, hasScanned, deviceCount)}</span>
+        <span className="statusbar-device">
+          {device ? device.wireless ? <Wifi size={10} /> : <Usb size={10} /> : null}
+          {deviceStatusText(device, hasScanned, deviceCount)}
+        </span>
       </div>
       <div className="statusbar-right">
-        <button onClick={onOpenFolder}>
-          <FolderOpen size={10} /> Open Folder
-        </button>
         <span>
-          {hotkeys.record ?? "--"} · {hotkeys.screenshot ?? "--"}
+          {hotkeys.record ? formatHotkey(hotkeys.record) : "--"} · {hotkeys.screenshot ? formatHotkey(hotkeys.screenshot) : "--"}
         </span>
       </div>
     </div>

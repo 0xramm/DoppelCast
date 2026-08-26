@@ -24,7 +24,7 @@
   --radius-button: 8px;
   --radius-input: 7px;
 
-  --font: "InterVariable", "Segoe UI", system-ui, sans-serif;
+  --font: "Outfit Variable", "Segoe UI", system-ui, sans-serif;
 }
 
 * {
@@ -42,7 +42,7 @@ body {
   background: var(--bg-window);
   color: var(--text-primary);
   font-family: var(--font);
-  font-size: 10px;
+  font-size: 12px;
   overflow: hidden;
   user-select: none;
 }

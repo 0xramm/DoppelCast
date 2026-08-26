@@ -1,53 +1,57 @@
-import { Square, Camera as CameraIcon, FolderOpen, FolderSearch } from "lucide-react";
-import type { DeviceInfo, SessionState, UserSettings } from "../types";
-import type { BoundHotkeys } from "../api";
+import { useEffect, useState } from "react";
+import { Square, Camera as CameraIcon, FolderSearch, Play } from "lucide-react";
+import type { DeviceInfo, SessionState } from "../types";
+import { listClips, type BoundHotkeys, type ClipInfo } from "../api";
+import { formatHotkey } from "../hotkeys";
+import { openClipPlayer } from "../player";
 
 interface Props {
   device: DeviceInfo | null;
-  settings: UserSettings;
-  onSettingsChange: (patch: Partial<UserSettings>) => void;
+  outputFolder: string;
   sessionState: SessionState;
   elapsed: string;
   hotkeys: BoundHotkeys;
   onRecordClick: () => void;
   onStopClick: () => void;
   onScreenshotClick: () => void;
-  onBrowseClick: () => void;
   onOpenFolderClick: () => void;
 }
 
-const RESOLUTIONS = [
-  { label: "1920p", value: 1920 },
-  { label: "1600p", value: 1600 },
-  { label: "1280p", value: 1280 },
-  { label: "No Limit", value: 0 },
-];
-const FPS_OPTIONS = [30, 60, 90, 120];
-const QUALITY = [
-  { label: "Low", bitrate: 15 },
-  { label: "Medium", bitrate: 40 },
-  { label: "High", bitrate: 80 },
-  { label: "Ultra", bitrate: 150 },
-];
+function formatClipMeta(clip: ClipInfo) {
+  const date = new Date(clip.modified_ms).toLocaleString(undefined, {
+    month: "short",
+    day: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+  const mb = (clip.size_bytes / (1024 * 1024)).toFixed(1);
+  return `${date} · ${mb} MB`;
+}
 
 export default function HomePage({
   device,
-  settings,
-  onSettingsChange,
+  outputFolder,
   sessionState,
   elapsed,
   hotkeys,
   onRecordClick,
   onStopClick,
   onScreenshotClick,
-  onBrowseClick,
   onOpenFolderClick,
 }: Props) {
   const statusText =
     sessionState === "recording" ? "Recording..." : device ? "Ready to record" : "No device connected";
-  const qualityLabel = QUALITY.find((q) => q.bitrate === settings.bitrateMbps)?.label ?? "High";
-  const recordHint = hotkeys.record ?? "no hotkey available";
-  const screenshotHint = hotkeys.screenshot ?? "no hotkey available";
+  const recordHint = hotkeys.record ? formatHotkey(hotkeys.record) : "no hotkey available";
+  const screenshotHint = hotkeys.screenshot ? formatHotkey(hotkeys.screenshot) : "no hotkey available";
+
+  const [clips, setClips] = useState<ClipInfo[]>([]);
+  // Re-lists whenever the folder changes or a recording just finished --
+  // the folder itself is the source of truth, no separate clip index to keep in sync.
+  useEffect(() => {
+    listClips(outputFolder)
+      .then(setClips)
+      .catch(() => setClips([]));
+  }, [outputFolder, sessionState]);
 
   return (
     <div className="home-page">
@@ -102,53 +106,20 @@ export default function HomePage({
       </div>
 
       <div className="card">
-        <div className="card-header">Settings</div>
-        <div className="settings-bar-row">
-          <div className="settings-bar-item">
-            <span className="settings-bar-label">Resolution</span>
-            <select value={settings.resolution} onChange={(e) => onSettingsChange({ resolution: Number(e.target.value) })}>
-              {RESOLUTIONS.map((r) => (
-                <option key={r.value} value={r.value}>
-                  {r.label}
-                </option>
-              ))}
-            </select>
-          </div>
-          <div className="settings-bar-item">
-            <span className="settings-bar-label">Frame Rate</span>
-            <select value={settings.fps} onChange={(e) => onSettingsChange({ fps: Number(e.target.value) })}>
-              {FPS_OPTIONS.map((f) => (
-                <option key={f} value={f}>
-                  {f} FPS
-                </option>
-              ))}
-            </select>
-          </div>
-          <div className="settings-bar-item">
-            <span className="settings-bar-label">Quality</span>
-            <select
-              value={qualityLabel}
-              onChange={(e) => {
-                const q = QUALITY.find((q) => q.label === e.target.value)!;
-                onSettingsChange({ bitrateMbps: q.bitrate });
-              }}
-            >
-              {QUALITY.map((q) => (
-                <option key={q.label} value={q.label}>
-                  {q.label}
-                </option>
-              ))}
-            </select>
-          </div>
-          <div className="settings-bar-item">
-            <span className="settings-bar-label">Save Location</span>
-            <div className="save-location-row">
-              <input type="text" value={settings.outputFolder} onChange={(e) => onSettingsChange({ outputFolder: e.target.value })} />
-              <button className="btn-browse" title="Browse" onClick={onBrowseClick}>
-                <FolderOpen size={11} />
+        <div className="card-header">Recent Clips</div>
+        <div className="clips-list">
+          {clips.length === 0 && <div className="clips-empty">No recordings yet</div>}
+          {clips.map((clip) => (
+            <div className="clip-row" key={clip.path}>
+              <div className="clip-info">
+                <span className="clip-name">{clip.name}</span>
+                <span className="clip-meta">{formatClipMeta(clip)}</span>
+              </div>
+              <button className="btn-browse" title="Play" onClick={() => openClipPlayer(clip.path, clip.name)}>
+                <Play size={11} />
               </button>
             </div>
-          </div>
+          ))}
         </div>
       </div>
     </div>

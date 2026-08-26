@@ -33,7 +33,7 @@ export default function AboutPage({ version, update }: { version: string; update
             {installing ? <Loader2 className="spin-icon" size={13} /> : <Download size={13} />}
             {installing ? "Installing…" : "Update Now"}
           </button>
-          {error && <p style={{ color: "var(--record-active)", fontSize: 11, marginTop: 6 }}>Update failed: {error}</p>}
+          {error && <p style={{ color: "var(--record-active)", fontSize: 13, marginTop: 6 }}>Update failed: {error}</p>}
         </div>
       ) : (
         <p style={{ color: "var(--text-muted)" }}>You're on the latest version.</p>
@@ -45,7 +45,7 @@ export default function AboutPage({ version, update }: { version: string; update
       <a href="https://github.com/0xramm/DoppelCast" target="_blank" rel="noreferrer">
         github.com/0xramm/DoppelCast
       </a>
-      <p style={{ color: "var(--text-muted)", fontSize: 9 }}>Issues and contributions welcome on the repo above.</p>
+      <p style={{ color: "var(--text-muted)", fontSize: 11 }}>Issues and contributions welcome on the repo above.</p>
     </div>
   );
 }
