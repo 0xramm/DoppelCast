@@ -45,6 +45,21 @@ export function VideoSettingsPage({ settings, onChange }: Props) {
         checked={settings.showMirrorWindow}
         onChange={(v) => onChange({ showMirrorWindow: v })}
       />
+      <div className="field-row">
+        <span className="field-label">Renderer</span>
+        <div className="field-control">
+          <select
+            value={settings.renderDriver}
+            onChange={(e) => onChange({ renderDriver: e.target.value as UserSettings["renderDriver"] })}
+            disabled={!settings.showMirrorWindow}
+          >
+            <option value="auto">Auto</option>
+            <option value="direct3d">Direct3D</option>
+            <option value="opengl">OpenGL</option>
+            <option value="software">Software</option>
+          </select>
+        </div>
+      </div>
     </Page>
   );
 }

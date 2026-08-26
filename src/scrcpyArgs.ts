@@ -39,6 +39,9 @@ export function buildScrcpyArgs(settings: UserSettings, outputPath: string, seri
   // the window actually rendering).
   if (settings.showMirrorWindow) {
     args.push("--window-title=DoppelCast");
+    if (settings.renderDriver !== "auto") {
+      args.push(`--render-driver=${settings.renderDriver}`);
+    }
   } else {
     args.push("--no-playback");
   }

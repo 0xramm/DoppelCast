@@ -48,6 +48,7 @@
 }
 
 .titlebar-btn {
+  position: relative;
   width: 36px;
   height: 26px;
   background: transparent;
@@ -56,6 +57,16 @@
   display: flex;
   align-items: center;
   justify-content: center;
+}
+
+.update-dot {
+  position: absolute;
+  top: 6px;
+  right: 8px;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--record-active);
 }
 
 .titlebar-btn:hover {
@@ -492,6 +503,26 @@ input[type="text"]:focus {
   border: 1px solid var(--border-color);
   background: var(--bg-secondary);
   color: var(--text-primary);
+}
+
+.btn-update {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  border-radius: var(--radius-input);
+  border: none;
+  background: var(--accent);
+  color: white;
+  font-weight: 600;
+}
+
+.btn-update:hover:not(:disabled) {
+  background: var(--accent-hover);
+}
+
+.btn-update:disabled {
+  opacity: 0.7;
 }
 
 /* Toggle switch */

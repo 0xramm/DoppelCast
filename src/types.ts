@@ -20,6 +20,9 @@ export interface UserSettings {
   fps: number;
   bitrateMbps: number;
   videoCodec: "h264" | "h265" | "av1";
+  // scrcpy's SDL render driver for the (optional) mirror window -- has no
+  // effect when showMirrorWindow is off (headless recording).
+  renderDriver: "auto" | "direct3d" | "opengl" | "software";
   audioCodec: "aac" | "opus" | "raw";
   recordAudio: boolean;
   showTouches: boolean;
@@ -37,6 +40,7 @@ export const DEFAULT_SETTINGS: UserSettings = {
   fps: 60,
   bitrateMbps: 80,
   videoCodec: "h264",
+  renderDriver: "auto",
   audioCodec: "aac",
   recordAudio: true,
   showTouches: false,

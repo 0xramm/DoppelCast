@@ -1,10 +1,16 @@
 import { getCurrentWindow } from "@tauri-apps/api/window";
-import { Settings, Minus, Square, X } from "lucide-react";
+import { Bell, Settings, Minus, Square, X } from "lucide-react";
 import logoIcon from "../assets/logo-icon.png";
 
 const win = getCurrentWindow();
 
-export default function TitleBar({ onOpenSettings }: { onOpenSettings: () => void }) {
+interface Props {
+  onOpenSettings: () => void;
+  onOpenAbout: () => void;
+  updateAvailable: boolean;
+}
+
+export default function TitleBar({ onOpenSettings, onOpenAbout, updateAvailable }: Props) {
   return (
     <div className="titlebar">
       <div className="titlebar-brand" data-tauri-drag-region>
@@ -15,6 +21,12 @@ export default function TitleBar({ onOpenSettings }: { onOpenSettings: () => voi
         </div>
       </div>
       <div className="titlebar-controls">
+        {updateAvailable && (
+          <button className="titlebar-btn" onClick={onOpenAbout} title="Update available">
+            <Bell size={13} />
+            <span className="update-dot" />
+          </button>
+        )}
         <button className="titlebar-btn" onClick={onOpenSettings} title="Settings">
           <Settings size={13} />
         </button>

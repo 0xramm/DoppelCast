@@ -18,7 +18,6 @@ import {
   HotkeysSettingsPage,
 } from "./pages/SettingsPages";
 import type { DeviceInfo, PageId, SessionState, UserSettings } from "./types";
-import { DEFAULT_SETTINGS } from "./types";
 import {
   listDevices,
   getDeviceDetails,
@@ -32,6 +31,9 @@ import {
   type ScrcpySetupResult,
 } from "./api";
 import { buildScrcpyArgs, generateFilename } from "./scrcpyArgs";
+import { loadSettings, saveSettings } from "./config";
+import { checkForUpdate } from "./update";
+import type { Update } from "@tauri-apps/plugin-updater";
 
 function formatElapsed(ms: number) {
   const totalSeconds = Math.floor(ms / 1000);
@@ -44,7 +46,8 @@ function formatElapsed(ms: number) {
 export default function App() {
   const [page, setPage] = useState<PageId>("home");
   const [device, setDevice] = useState<DeviceInfo | null>(null);
-  const [settings, setSettings] = useState<UserSettings>(DEFAULT_SETTINGS);
+  const [settings, setSettings] = useState<UserSettings>(loadSettings);
+  const [update, setUpdate] = useState<Update | null>(null);
   const [sessionState, setSessionState] = useState<SessionState>("idle");
   const [elapsedMs, setElapsedMs] = useState(0);
   const [hotkeys, setHotkeys] = useState<BoundHotkeys>({ record: null, screenshot: null });
@@ -73,6 +76,17 @@ export default function App() {
   }, [sessionState]);
 
   const patchSettings = (patch: Partial<UserSettings>) => setSettings((s) => ({ ...s, ...patch }));
+
+  useEffect(() => {
+    saveSettings(settings);
+  }, [settings]);
+
+  // Checked once per launch, after the setup/ready gate -- no need to poll,
+  // a new release doesn't show up mid-session.
+  useEffect(() => {
+    if (!ready) return;
+    checkForUpdate().then(setUpdate);
+  }, [ready]);
 
   const handleRecord = async () => {
     const { device: currentDevice, settings: currentSettings, sessionState: currentState } = stateRef.current;
@@ -208,7 +222,7 @@ export default function App() {
   if (!ready) {
     return (
       <div className="shell">
-        <TitleBar onOpenSettings={() => {}} />
+        <TitleBar onOpenSettings={() => {}} onOpenAbout={() => {}} updateAvailable={false} />
         <div className="loading-screen">
           <Loader2 className="spin-icon" size={26} />
           <span>Preparing DoppelCast…</span>
@@ -219,7 +233,7 @@ export default function App() {
 
   return (
     <div className="shell">
-      <TitleBar onOpenSettings={() => setPage("settings")} />
+      <TitleBar onOpenSettings={() => setPage("settings")} onOpenAbout={() => setPage("about")} updateAvailable={!!update} />
       <div className="body">
         <Sidebar active={page} onNavigate={setPage} device={device} />
         <div className="content">
@@ -243,7 +257,7 @@ export default function App() {
           {page === "capture" && <CaptureSettingsPage settings={settings} onChange={patchSettings} />}
           {page === "settings" && <GeneralSettingsPage />}
           {page === "hotkeys" && <HotkeysSettingsPage hotkeys={hotkeys} />}
-          {page === "about" && <AboutPage version={version} />}
+          {page === "about" && <AboutPage version={version} update={update} />}
         </div>
       </div>
       <StatusBar
