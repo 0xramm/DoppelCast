@@ -359,17 +359,29 @@
   font-size: 11px;
 }
 
-.statusbar-left,
+.statusbar-left {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+  flex-shrink: 1;
+}
+
 .statusbar-right {
   display: flex;
   align-items: center;
   gap: 10px;
+  flex-shrink: 0;
 }
 
 .statusbar-device {
   display: inline-flex;
   align-items: center;
   gap: 4px;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .statusbar button {
@@ -383,6 +395,10 @@
 
 .statusbar button:hover {
   color: var(--text-primary);
+}
+
+.statusbar button:disabled {
+  opacity: 0.4;
 }
 
 /* ---------- Cards ---------- */
@@ -513,9 +529,9 @@
 .quick-actions-grid {
   flex: 1;
   display: grid;
-  grid-template-columns: repeat(2, 1fr);
+  grid-template-columns: repeat(3, 1fr);
   align-content: center;
-  gap: 12px;
+  gap: 8px;
 }
 
 .quick-action-btn {
@@ -762,7 +778,42 @@ input[type="number"]:focus {
   background: #000;
 }
 
+.viewer-image {
+  flex: 1;
+  width: 100%;
+  min-height: 0;
+  background: #000;
+  object-fit: contain;
+}
+
 /* ---------- Recent clips (Home page) ---------- */
+.media-tabs {
+  display: flex;
+  gap: 4px;
+  margin-bottom: 8px;
+}
+
+.media-tab {
+  background: transparent;
+  border: none;
+  color: var(--text-muted);
+  font-size: 10px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  padding: 4px 8px;
+  border-radius: var(--radius-button);
+}
+
+.media-tab:hover {
+  color: var(--text-secondary);
+}
+
+.media-tab.active {
+  background: var(--bg-secondary);
+  color: var(--accent);
+}
+
 .clips-list {
   display: flex;
   flex-direction: column;

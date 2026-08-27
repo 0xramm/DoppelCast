@@ -1,5 +1,5 @@
-import { Wifi, Usb } from "lucide-react";
-import type { DeviceInfo } from "../types";
+import { Wifi, Usb, Play, Square } from "lucide-react";
+import type { DeviceInfo, SessionState } from "../types";
 import type { BoundHotkeys } from "../api";
 import { formatHotkey } from "../hotkeys";
 
@@ -15,13 +15,18 @@ export default function StatusBar({
   version,
   hasScanned,
   deviceCount,
+  sessionState,
+  onTogglePreview,
 }: {
   device: DeviceInfo | null;
   hotkeys: BoundHotkeys;
   version: string;
   hasScanned: boolean;
   deviceCount: number;
+  sessionState: SessionState;
+  onTogglePreview: () => void;
 }) {
+  const previewing = sessionState === "previewing";
   return (
     <div className="statusbar">
       <div className="statusbar-left">
@@ -32,6 +37,14 @@ export default function StatusBar({
         </span>
       </div>
       <div className="statusbar-right">
+        <button
+          onClick={onTogglePreview}
+          disabled={!device || (sessionState !== "idle" && !previewing)}
+          title={previewing ? "Stop preview" : "Preview (live mirror, not recorded)"}
+        >
+          {previewing ? <Square size={10} /> : <Play size={10} />}
+          {previewing ? "Stop" : "Preview"}
+        </button>
         <span>
           {hotkeys.record ? formatHotkey(hotkeys.record) : "--"} · {hotkeys.screenshot ? formatHotkey(hotkeys.screenshot) : "--"}
         </span>

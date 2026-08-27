@@ -83,9 +83,17 @@ pub fn ensure_scrcpy_installed() -> Result<(), String> {
         }
     }
 
+    // scrcpy.exe loads scrcpy.png (right next to it) as its window icon at
+    // runtime -- swap in DoppelCast's own icon over the stock one so the
+    // mirror/preview window's taskbar icon matches the rest of the app,
+    // same as the custom --window-title already hiding what it really is.
+    let _ = std::fs::write(dest.join("scrcpy.png"), SCRCPY_WINDOW_ICON);
+
     let _ = std::fs::remove_dir_all(&tmp);
     Ok(())
 }
+
+static SCRCPY_WINDOW_ICON: &[u8] = include_bytes!("../assets/scrcpy-window-icon.png");
 
 fn find_scrcpy_dir(root: &Path) -> Option<PathBuf> {
     if root.join("scrcpy.exe").exists() {

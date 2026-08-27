@@ -151,6 +151,7 @@ pub fn run() {
             set_hotkey,
             get_scrcpy_status,
             clips::list_clips,
+            clips::list_screenshots,
             scrcpy::list_devices,
             scrcpy::list_mdns_devices,
             scrcpy::pair_wifi,

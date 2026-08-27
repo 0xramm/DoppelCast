@@ -15,3 +15,18 @@ export function openClipPlayer(path: string, title: string) {
     minHeight: 220,
   });
 }
+
+// Same pattern as the clip player, but for screenshots -- its own small
+// native window instead of a file-manager round trip.
+export function openImageViewer(path: string, title: string) {
+  const label = `viewer-${Date.now()}`;
+  const url = `index.html?image=${encodeURIComponent(path)}&title=${encodeURIComponent(title)}`;
+  new WebviewWindow(label, {
+    url,
+    title,
+    width: 480,
+    height: 380,
+    minWidth: 240,
+    minHeight: 200,
+  });
+}

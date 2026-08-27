@@ -46,6 +46,7 @@ export const pairWifi = (address: string, code: string) => invoke<string>("pair_
 // The frequent path: plain `adb connect ip:port`, works once paired.
 export const connectWifi = (ip: string, port: number) => invoke<string>("connect_wifi", { ip, port });
 export const listClips = (folder: string) => invoke<ClipInfo[]>("list_clips", { folder });
+export const listScreenshots = (folder: string) => invoke<ClipInfo[]>("list_screenshots", { folder });
 // Registers `combo` (e.g. "Ctrl+Alt+KeyR") as the global hotkey for `action`,
 // unregistering whatever was bound before. Rejects if the combo is invalid
 // or already claimed (by this app's other hotkey, or another program).

@@ -1,7 +1,5 @@
 import type { UserSettings } from "./types";
 
-// Always a recording session now -- outputPath is required (no more
-// preview-only mode; see SessionState in types.ts for why).
 export function buildScrcpyArgs(settings: UserSettings, outputPath: string, serial: string): string[] {
   const args: string[] = [];
   if (serial) {
@@ -45,6 +43,32 @@ export function buildScrcpyArgs(settings: UserSettings, outputPath: string, seri
     }
   } else {
     args.push("--no-playback");
+  }
+
+  return args;
+}
+
+// Live preview -- just the mirror window, no --record at all. Always shows
+// the window (that's the whole point) regardless of showMirrorWindow, and
+// skips audio since it's a quick visual check, not a capture.
+export function buildPreviewArgs(settings: UserSettings, serial: string): string[] {
+  const args: string[] = [];
+  if (serial) {
+    args.push("-s", serial);
+  }
+
+  args.push(`--video-codec=${settings.videoCodec}`);
+  args.push(`--max-fps=${settings.fps}`);
+  if (settings.resolution > 0) {
+    args.push(`--max-size=${settings.resolution}`);
+  }
+  args.push("--no-audio");
+  args.push("--window-title=DoppelCast Preview");
+  if (settings.renderDriver !== "auto") {
+    args.push(`--render-driver=${settings.renderDriver}`);
+  }
+  if (settings.borderlessWindow) {
+    args.push("--window-borderless");
   }
 
   return args;

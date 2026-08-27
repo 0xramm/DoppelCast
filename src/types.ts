@@ -13,10 +13,11 @@ export interface DeviceInfo {
   charging: boolean;
 }
 
-// No live-preview state anymore -- an embedded native scrcpy window inside
-// the webview isn't reliably achievable, and going fully headless
-// (--no-playback) sidesteps the problem instead of fighting it.
-export type SessionState = "idle" | "recording";
+// No *embedded* in-app preview -- an embedded native scrcpy window inside
+// the webview isn't reliably achievable. "previewing" is scrcpy's own
+// (separate, unembedded) mirror window with no --record, for a quick "what
+// does this look like" check without capturing anything.
+export type SessionState = "idle" | "recording" | "previewing";
 
 export interface UserSettings {
   outputFolder: string;

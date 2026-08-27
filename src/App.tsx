@@ -31,7 +31,7 @@ import {
   type BoundHotkeys,
   type ScrcpySetupResult,
 } from "./api";
-import { buildScrcpyArgs, generateFilename } from "./scrcpyArgs";
+import { buildScrcpyArgs, buildPreviewArgs, generateFilename } from "./scrcpyArgs";
 import { loadSettings, saveSettings } from "./config";
 import { checkForUpdate } from "./update";
 import type { Update } from "@tauri-apps/plugin-updater";
@@ -96,17 +96,18 @@ export default function App() {
   // A previously-connected Wi-Fi device doesn't survive the adb server
   // restart below (kill_adb_server, on the Rust side) -- that's what
   // actually held the wireless connection, not the phone's pairing/trust,
-  // which is permanent. So reconnect automatically once ready, instead of
-  // making the user hit Connect again every launch. Prefers a live mDNS
-  // discovery hit (the device's *current* address -- reliable even if it
-  // changed since last time) over the persisted last-used ip:port, giving
-  // mDNS a few retries since discovery takes a moment right after the adb
-  // server restarts. All of this is best-effort: silent failure just leaves
-  // the manual Connect button in the sidebar as the fallback.
+  // which is permanent. So reconnect automatically whenever Wi-Fi mode is
+  // (or becomes) active, instead of making the user hit Connect again.
+  // Keyed on `connectionMode` itself (not just `ready`) so this only ever
+  // scans/connects while Wi-Fi mode is actually selected -- switching to
+  // USB cancels any in-flight retry immediately, and USB mode never
+  // triggers this at all. Prefers a live mDNS discovery hit (the device's
+  // *current* address) over the persisted last-used ip:port, giving mDNS a
+  // few retries since discovery takes a moment right after the adb server
+  // restarts. All of this is best-effort: silent failure just leaves the
+  // manual Connect button in the sidebar as the fallback.
   useEffect(() => {
-    if (!ready) return;
-    const { connectionMode, wifiIp, wifiPort } = stateRef.current.settings;
-    if (connectionMode !== "wifi") return;
+    if (!ready || connectionMode !== "wifi") return;
 
     let cancelled = false;
     let attempts = 0;
@@ -114,6 +115,7 @@ export default function App() {
       if (cancelled) return;
       listMdnsDevices()
         .then((devices) => {
+          if (cancelled) return;
           const found = devices.find((d) => d.kind === "connect");
           if (found) {
             const [ip, port] = found.address.split(":");
@@ -121,11 +123,14 @@ export default function App() {
           } else if (attempts < 3) {
             attempts++;
             setTimeout(tryReconnect, 1500);
-          } else if (wifiIp) {
-            connectWifi(wifiIp, wifiPort).catch(() => {});
+          } else {
+            const { wifiIp, wifiPort } = stateRef.current.settings;
+            if (wifiIp) connectWifi(wifiIp, wifiPort).catch(() => {});
           }
         })
         .catch(() => {
+          if (cancelled) return;
+          const { wifiIp, wifiPort } = stateRef.current.settings;
           if (wifiIp) connectWifi(wifiIp, wifiPort).catch(() => {});
         });
     };
@@ -133,7 +138,7 @@ export default function App() {
     return () => {
       cancelled = true;
     };
-  }, [ready]);
+  }, [ready, connectionMode]);
 
   // Binds `combo` as the OS-level global shortcut for `action`, updates the
   // displayed hotkeys on success, and persists it as the user's choice.
@@ -162,7 +167,7 @@ export default function App() {
 
   const handleRecord = async () => {
     const { device: currentDevice, settings: currentSettings, sessionState: currentState } = stateRef.current;
-    if (!currentDevice || currentState === "recording") return;
+    if (!currentDevice || currentState !== "idle") return;
 
     const outputPath = `${currentSettings.outputFolder}\\${generateFilename()}`;
     const args = buildScrcpyArgs(currentSettings, outputPath, currentDevice.serial);
@@ -185,6 +190,26 @@ export default function App() {
   const handleToggleRecord = () => {
     if (stateRef.current.sessionState === "recording") void handleStop();
     else void handleRecord();
+  };
+
+  // Live preview: just scrcpy's own mirror window, no --record -- a quick
+  // "what does this look like" check without capturing anything. Shares
+  // the same single-session Rust state as recording (start_scrcpy already
+  // refuses a second session), so the two just can't run at once.
+  const handleTogglePreview = async () => {
+    const { device: currentDevice, settings: currentSettings, sessionState: currentState } = stateRef.current;
+    if (currentState === "previewing") {
+      await stopScrcpy(true);
+      setSessionState("idle");
+      return;
+    }
+    if (!currentDevice || currentState !== "idle") return;
+    try {
+      await startScrcpy(buildPreviewArgs(currentSettings, currentDevice.serial));
+      setSessionState("previewing");
+    } catch (err) {
+      console.error("Failed to start preview:", err);
+    }
   };
 
   const handleScreenshot = async () => {
@@ -242,7 +267,9 @@ export default function App() {
       const mode = currentSettings.connectionMode;
 
       const running = await isScrcpyRunning().catch(() => false);
-      if (currentState === "recording" && !running) {
+      if (currentState !== "idle" && !running) {
+        // Covers both a recording that crashed/got unplugged mid-capture
+        // and a preview window the user just closed by hand.
         setSessionState("idle");
         setElapsedMs(0);
       }
@@ -347,6 +374,7 @@ export default function App() {
               onStopClick={handleStop}
               onScreenshotClick={handleScreenshot}
               onOpenFolderClick={handleOpenFolder}
+              onTogglePreview={handleTogglePreview}
             />
           )}
           {page === "video" && <VideoSettingsPage settings={settings} onChange={patchSettings} />}
@@ -363,7 +391,15 @@ export default function App() {
           {page === "about" && <AboutPage version={version} update={update} />}
         </div>
       </div>
-      <StatusBar device={device} hotkeys={hotkeys} version={version} hasScanned={hasScanned} deviceCount={deviceCount} />
+      <StatusBar
+        device={device}
+        hotkeys={hotkeys}
+        version={version}
+        hasScanned={hasScanned}
+        deviceCount={deviceCount}
+        sessionState={sessionState}
+        onTogglePreview={handleTogglePreview}
+      />
     </div>
   );
 }

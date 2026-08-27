@@ -10,23 +10,17 @@ pub struct ClipInfo {
     size_bytes: u64,
 }
 
-// Lists .mp4 recordings straight out of the save-location folder, newest
-// first -- no clip database/index, the folder itself is the source of
-// truth. A missing/unreadable folder just yields an empty list.
-#[tauri::command]
-pub fn list_clips(folder: String) -> Vec<ClipInfo> {
-    let Ok(entries) = std::fs::read_dir(Path::new(&folder)) else {
+// Shared scan behind both list_clips and list_screenshots -- newest first,
+// no database/index, the folder itself is the source of truth. A missing/
+// unreadable folder just yields an empty list.
+fn list_files_with_ext(folder: &str, ext: &str) -> Vec<ClipInfo> {
+    let Ok(entries) = std::fs::read_dir(Path::new(folder)) else {
         return Vec::new();
     };
 
-    let mut clips: Vec<ClipInfo> = entries
+    let mut files: Vec<ClipInfo> = entries
         .flatten()
-        .filter(|e| {
-            e.path()
-                .extension()
-                .and_then(|ext| ext.to_str())
-                .is_some_and(|ext| ext.eq_ignore_ascii_case("mp4"))
-        })
+        .filter(|e| e.path().extension().and_then(|e| e.to_str()).is_some_and(|e| e.eq_ignore_ascii_case(ext)))
         .filter_map(|e| {
             let meta = e.metadata().ok()?;
             let modified_ms = meta
@@ -44,6 +38,16 @@ pub fn list_clips(folder: String) -> Vec<ClipInfo> {
         })
         .collect();
 
-    clips.sort_by(|a, b| b.modified_ms.cmp(&a.modified_ms));
-    clips
+    files.sort_by(|a, b| b.modified_ms.cmp(&a.modified_ms));
+    files
+}
+
+#[tauri::command]
+pub fn list_clips(folder: String) -> Vec<ClipInfo> {
+    list_files_with_ext(&folder, "mp4")
+}
+
+#[tauri::command]
+pub fn list_screenshots(folder: String) -> Vec<ClipInfo> {
+    list_files_with_ext(&folder, "png")
 }
