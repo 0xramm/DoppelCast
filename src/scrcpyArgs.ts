@@ -50,7 +50,8 @@ export function buildScrcpyArgs(settings: UserSettings, outputPath: string, seri
 
 // Live preview -- just the mirror window, no --record at all. Always shows
 // the window (that's the whole point) regardless of showMirrorWindow, and
-// skips audio since it's a quick visual check, not a capture.
+// uses the exact same audio setup as recording (whatever the user picked in
+// Audio settings), so preview sounds like what actually gets captured.
 export function buildPreviewArgs(settings: UserSettings, serial: string): string[] {
   const args: string[] = [];
   if (serial) {
@@ -62,7 +63,14 @@ export function buildPreviewArgs(settings: UserSettings, serial: string): string
   if (settings.resolution > 0) {
     args.push(`--max-size=${settings.resolution}`);
   }
-  args.push("--no-audio");
+
+  if (settings.recordAudio) {
+    args.push(`--audio-codec=${settings.audioCodec}`);
+    args.push("--audio-source=output");
+  } else {
+    args.push("--no-audio");
+  }
+
   args.push("--window-title=DoppelCast Preview");
   if (settings.renderDriver !== "auto") {
     args.push(`--render-driver=${settings.renderDriver}`);
